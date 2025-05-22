@@ -8,7 +8,7 @@
 
 ## 📱 What is PingCode?
 
-[PingCode](https://github.com/nalikiru-dev/pingcode/blob/main/assets/images/splash-icon.png)
+![PingCode](https://github.com/nalikiru-dev/pingcode/blob/main/assets/images/splash-icon.png)
 
 **PingCode** is your ultra-portable code editor and compiler for **Android** and **iOS**. Designed specifically for **mobile and tablet devices**, it’s the closest thing to carrying your **Vim** or **VS Code** in your pocket.
 

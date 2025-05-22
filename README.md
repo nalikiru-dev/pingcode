@@ -1,52 +1,64 @@
-# Welcome to your Expo app 👋
+# 🚀 PingCode — Code Without Limits 🌍📱
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+> _"Why can't I code anywhere, anytime, without my computer?"_
+>
+> We've all asked that question. And the answer is here — **PingCode**.
 
-## Get started
+---
 
-1. Install dependencies
+## 📱 What is PingCode?
 
-   ```bash
-   npm install
-   ```
+**PingCode** is your ultra-portable code editor and compiler for **Android** and **iOS**. Designed specifically for **mobile and tablet devices**, it’s the closest thing to carrying your **Vim** or **VS Code** in your pocket.
 
-2. Start the app
+Whether you’re on the train, on your couch, or deep in the mountains — **PingCode** brings the power of full-fledged development environments **anywhere** you go.
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## 🧠 Why PingCode?
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+> "I wanted to fix a bug, but my laptop was dead. I just had my phone. I felt useless. Why?"  
+> — Every Dev, at some point
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+Because the world runs on code — but code shouldn't run only on desktops.
 
-## Get a fresh project
+PingCode changes that by giving developers the power to:
 
-When you're ready, run:
+✅ Edit  
+✅ Compile  
+✅ Run  
+✅ Save  
+✅ Git Push
 
+...right from your phone or tablet, using **real-world programming languages and tools.**
+
+---
+
+## ⚙️ Features That Will Blow Your Mind
+
+🔹 **Vim Mode** — Hardcore mode for touch typists and command-line lovers  
+🔹 **VS Code Mode** — A full GUI experience with tabs, themes, and extensions  
+🔹 **Offline Compilation** — Yes, compile without the internet.  
+🔹 **Multi-language Support** — Python, JS, Dart, C/C++, Java, Go, Rust, and more  
+🔹 **Intelligent Auto-Complete** — AI-powered suggestions tailored for mobile workflows  
+🔹 **Snappy UI** — Built for performance even on budget phones  
+🔹 **Git Integration** — Pull, commit, push like a boss  
+🔹 **Split View** — Terminal + Editor = Dev heaven  
+🔹 **Customizable Themes** — Light mode, dark mode, hacker green, matrix rain, you name it
+
+---
+
+## 🚧 Built For...
+
+- 🧑‍💻 **Developers on the go**
+- 🌍 **Nomadic coders**
+- 🧪 **Hackathon warriors**
+- 💼 **Remote jobbers who live on the move**
+- 🛠️ **Tinkerers, students, and power users**
+
+---
+
+## 📦 Installation
+
+### Android
 ```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
-# pingcode
-# pingcode
+Coming soon on Google Play

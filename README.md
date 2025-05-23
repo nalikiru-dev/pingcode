@@ -1,4 +1,4 @@
-# 🚀 PingCode — Code Without Limits 🌍📱
+# 🚀 PingCode — Code Without Limits - Opensource
 
 > _"Why can't I code anywhere, anytime, without my computer?"_
 >

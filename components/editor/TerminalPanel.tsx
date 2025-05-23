@@ -1,9 +1,8 @@
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
-import { useState, useRef } from 'react';
 import { X } from 'lucide-react-native';
-import { Platform } from 'react-native';
+import { useRef, useState } from 'react';
+import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-export default function TerminalPanel() {
+export default function TerminalPanel({ toggleTerminal }: { toggleTerminal: () => void }) {
   const [command, setCommand] = useState('');
   const [output, setOutput] = useState<string[]>([
     'PingCode Terminal v1.0',
@@ -66,7 +65,7 @@ export default function TerminalPanel() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Terminal</Text>
-        <TouchableOpacity style={styles.closeButton}>
+        <TouchableOpacity style={styles.closeButton} onPress={toggleTerminal}>
           <X size={16} color="#FFFFFF" />
         </TouchableOpacity>
       </View>

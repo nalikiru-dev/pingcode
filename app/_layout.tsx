@@ -1,7 +1,6 @@
-import { useEffect } from 'react';
+import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 
 export default function RootLayout() {
   useFrameworkReady();
@@ -9,7 +8,7 @@ export default function RootLayout() {
   return (
     <>
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="+not-found" />
+        <Stack.Screen name="/(tabs)" />
       </Stack>
       <StatusBar style="auto" />
     </>

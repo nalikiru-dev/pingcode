@@ -18,7 +18,6 @@ export default function HomeScreen() {
       <TextInput 
       value={value}
       onChangeText={onValueChange}
-      
       />
       </View>
   );

@@ -21,6 +21,15 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
+        name="onboarding"
+        options={{
+          title: 'Welcome',
+          tabBarIcon: ({ color, size }) => (
+            <Code size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="editor"
         options={{
           title: 'Editor',

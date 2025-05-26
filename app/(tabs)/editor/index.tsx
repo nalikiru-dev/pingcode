@@ -6,7 +6,7 @@ import { useEditorStore } from '@/store/editorStore';
 import { Folder, Terminal } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Platform, StyleSheet, useColorScheme, useWindowDimensions, View } from 'react-native';
-import { TouchableOpacity } from 'react-native-gesture-handler';
+import { GestureHandlerRootView, TouchableOpacity } from 'react-native-gesture-handler';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function EditorScreen() {
@@ -70,7 +70,7 @@ export default function EditorScreen() {
       </View>
 
       {/* Floating Action Buttons */}
-      <View style={styles.fabContainer}>
+      <GestureHandlerRootView style={styles.fabContainer}>
         <TouchableOpacity
           style={[
             styles.fabButton,
@@ -89,7 +89,7 @@ export default function EditorScreen() {
         >
           <Terminal size={22} color={isDark ? '#FFFFFF' : '#000000'} />
         </TouchableOpacity>
-      </View>
+      </GestureHandlerRootView>
     </SafeAreaView>
   );
 }
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   fabContainer: {
     position: 'absolute',
     right: 16,
-    bottom: Platform.OS === 'ios' ? 100 : 76, // Account for tab bar height
+    bottom: Platform.OS === 'ios' ? 100 : 76,
     gap: 12,
   },
   fabButton: {

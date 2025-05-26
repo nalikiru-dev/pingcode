@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { sampleProjects } from '@/data/sampleProjects';
+import { EditorFile, EditorStore, Project } from '../types/editor';
 
 interface File {
   id: string;
@@ -9,22 +9,13 @@ interface File {
   content: string;
 }
 
-interface Project {
-  id: string;
-  name: string;
-  description: string;
-  language: string;
-  files: File[];
-  createdAt: string;
-  updatedAt: string;
-}
-
 interface EditorState {
   projects: Project[];
   currentProject: Project | null;
   files: File[];
   openFiles: string[];
   currentFile: string | null;
+  mode: string;
   
   // Project actions
   setCurrentProject: (project: Project) => void;
@@ -43,254 +34,95 @@ interface EditorState {
   setCurrentFile: (fileId: string) => void;
   closeFile: (fileId: string) => void;
   saveAllFiles: () => void;
+  
+  // New actions
+  setEditorMode: (mode: string) => void;
 }
 
-export const useEditorStore = create<EditorState>((set, get) => ({
-  projects: [],
-  currentProject: null,
-  files: [],
-  openFiles: [],
+// Sample initial data
+const SAMPLE_FILES: EditorFile[] = [
+  {
+    id: '1',
+    name: 'index.tsx',
+    content: 'import React from "react";\n\nexport default function App() {\n  return <div>Hello World</div>;\n}'
+  },
+  {
+    id: '2',
+    name: 'styles.css',
+    content: 'body {\n  margin: 0;\n  padding: 0;\n  font-family: sans-serif;\n}'
+  }
+];
+
+const SAMPLE_PROJECTS: Project[] = [
+  {
+    id: '1',
+    name: 'React App',
+    description: 'A simple React application',
+    language: 'typescript',
+    files: SAMPLE_FILES,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+];
+
+export const useEditorStore = create<EditorStore>((set, get) => ({
+  // File state
   currentFile: null,
+  files: SAMPLE_FILES,
+  mode: 'vscode',
   
-  setCurrentProject: (project) => {
-    set({
-      currentProject: project,
-      files: project.files,
-      openFiles: [],
-      currentFile: null,
-    });
+  // Project state
+  projects: SAMPLE_PROJECTS,
+  currentProject: null,
+  openFiles: [],
+  
+  // Editor mode actions
+  setEditorMode: (mode) => set({ mode }),
+  
+  // File actions
+  addFile: (file: EditorFile) => set((state) => ({
+    files: [...state.files, file]
+  })),
+  updateFile: (id: string, content: string) => set((state) => ({
+    files: state.files.map((file) => 
+      file.id === id ? { ...file, content } : file
+    )
+  })),
+  removeFile: (id: string) => set((state) => ({
+    files: state.files.filter((file) => file.id !== id)
+  })),
+  getFileById: (fileId: string) => {
+    const state = get();
+    return state.files.find(file => file.id === fileId);
   },
   
-  addProject: (project) => {
-    set((state) => ({
-      projects: [...state.projects, project],
-    }));
-  },
+  // Project actions
+  setCurrentProject: (project: Project) => set({ currentProject: project }),
+  addProject: (project: Project) => set((state) => ({
+    projects: [...state.projects, project]
+  })),
+  updateProject: (projectId: string, updates: Partial<Project>) => set((state) => ({
+    projects: state.projects.map((project) =>
+      project.id === projectId ? { ...project, ...updates } : project
+    )
+  })),
+  deleteProject: (projectId: string) => set((state) => ({
+    projects: state.projects.filter((project) => project.id !== projectId),
+    currentProject: state.currentProject?.id === projectId ? null : state.currentProject
+  })),
   
-  updateProject: (projectId, updates) => {
-    set((state) => ({
-      projects: state.projects.map((project) => 
-        project.id === projectId 
-          ? { ...project, ...updates, updatedAt: new Date().toISOString() } 
-          : project
-      ),
-      currentProject: 
-        state.currentProject?.id === projectId 
-          ? { ...state.currentProject, ...updates, updatedAt: new Date().toISOString() } 
-          : state.currentProject,
-    }));
-  },
-  
-  deleteProject: (projectId) => {
-    set((state) => {
-      const newProjects = state.projects.filter(
-        (project) => project.id !== projectId
-      );
-      
-      return {
-        projects: newProjects,
-        currentProject: 
-          state.currentProject?.id === projectId ? null : state.currentProject,
-        files: 
-          state.currentProject?.id === projectId ? [] : state.files,
-        openFiles: 
-          state.currentProject?.id === projectId ? [] : state.openFiles,
-        currentFile: 
-          state.currentProject?.id === projectId ? null : state.currentFile,
-      };
-    });
-  },
-  
-  addFile: (file) => {
-    set((state) => {
-      const newFiles = [...state.files, file];
-      
-      // Update project files
-      if (state.currentProject) {
-        const updatedProject = {
-          ...state.currentProject,
-          files: newFiles,
-          updatedAt: new Date().toISOString(),
-        };
-        
-        // Update projects list
-        const updatedProjects = state.projects.map((project) => 
-          project.id === updatedProject.id ? updatedProject : project
-        );
-        
-        return {
-          files: newFiles,
-          currentProject: updatedProject,
-          projects: updatedProjects,
-          openFiles: [...state.openFiles, file.id],
-          currentFile: file.id,
-        };
-      }
-      
-      return { files: newFiles };
-    });
-  },
-  
-  updateFile: (fileId, updates) => {
-    set((state) => {
-      const newFiles = state.files.map((file) => 
-        file.id === fileId ? { ...file, ...updates } : file
-      );
-      
-      // Update project files
-      if (state.currentProject) {
-        const updatedProject = {
-          ...state.currentProject,
-          files: newFiles,
-          updatedAt: new Date().toISOString(),
-        };
-        
-        // Update projects list
-        const updatedProjects = state.projects.map((project) => 
-          project.id === updatedProject.id ? updatedProject : project
-        );
-        
-        return {
-          files: newFiles,
-          currentProject: updatedProject,
-          projects: updatedProjects,
-        };
-      }
-      
-      return { files: newFiles };
-    });
-  },
-  
-  updateFileContent: (fileId, content) => {
-    set((state) => {
-      const newFiles = state.files.map((file) => 
-        file.id === fileId ? { ...file, content } : file
-      );
-      
-      // Update project files
-      if (state.currentProject) {
-        const updatedProject = {
-          ...state.currentProject,
-          files: newFiles,
-          updatedAt: new Date().toISOString(),
-        };
-        
-        // Update projects list
-        const updatedProjects = state.projects.map((project) => 
-          project.id === updatedProject.id ? updatedProject : project
-        );
-        
-        return {
-          files: newFiles,
-          currentProject: updatedProject,
-          projects: updatedProjects,
-        };
-      }
-      
-      return { files: newFiles };
-    });
-  },
-  
-  deleteFile: (fileId) => {
-    set((state) => {
-      const newFiles = state.files.filter((file) => file.id !== fileId);
-      
-      // Update open files
-      const newOpenFiles = state.openFiles.filter((id) => id !== fileId);
-      let newCurrentFile = state.currentFile;
-      
-      if (state.currentFile === fileId) {
-        newCurrentFile = newOpenFiles.length > 0 ? newOpenFiles[0] : null;
-      }
-      
-      // Update project files
-      if (state.currentProject) {
-        const updatedProject = {
-          ...state.currentProject,
-          files: newFiles,
-          updatedAt: new Date().toISOString(),
-        };
-        
-        // Update projects list
-        const updatedProjects = state.projects.map((project) => 
-          project.id === updatedProject.id ? updatedProject : project
-        );
-        
-        return {
-          files: newFiles,
-          openFiles: newOpenFiles,
-          currentFile: newCurrentFile,
-          currentProject: updatedProject,
-          projects: updatedProjects,
-        };
-      }
-      
-      return {
-        files: newFiles,
-        openFiles: newOpenFiles,
-        currentFile: newCurrentFile,
-      };
-    });
-  },
-  
-  getFileById: (fileId) => {
-    return get().files.find((file) => file.id === fileId);
-  },
-  
-  setCurrentFile: (fileId) => {
-    set((state) => {
-      // If the file is already open, just set it as current
-      if (state.openFiles.includes(fileId)) {
-        return { currentFile: fileId };
-      }
-      
-      // Otherwise, add it to open files and set as current
-      return {
-        openFiles: [...state.openFiles, fileId],
-        currentFile: fileId,
-      };
-    });
-  },
-  
-  closeFile: (fileId) => {
-    set((state) => {
-      const newOpenFiles = state.openFiles.filter((id) => id !== fileId);
-      
-      // If we're closing the current file, select another one
-      let newCurrentFile = state.currentFile;
-      if (state.currentFile === fileId) {
-        newCurrentFile = newOpenFiles.length > 0 ? newOpenFiles[0] : null;
-      }
-      
-      return {
-        openFiles: newOpenFiles,
-        currentFile: newCurrentFile,
-      };
-    });
-  },
-  
+  // Editor state actions
+  setCurrentFile: (fileId: string) => set((state) => ({
+    currentFile: fileId,
+    openFiles: state.openFiles.includes(fileId) 
+      ? state.openFiles 
+      : [...state.openFiles, fileId]
+  })),
+  closeFile: (fileId: string) => set((state) => ({
+    openFiles: state.openFiles.filter((id) => id !== fileId),
+    currentFile: state.currentFile === fileId ? null : state.currentFile
+  })),
   saveAllFiles: () => {
-    // This function doesn't need to do anything special in our implementation
-    // since we're updating files in real-time, but we'll keep it for the UI
-    set((state) => {
-      if (state.currentProject) {
-        const updatedProject = {
-          ...state.currentProject,
-          updatedAt: new Date().toISOString(),
-        };
-        
-        // Update projects list
-        const updatedProjects = state.projects.map((project) => 
-          project.id === updatedProject.id ? updatedProject : project
-        );
-        
-        return {
-          currentProject: updatedProject,
-          projects: updatedProjects,
-        };
-      }
-      
-      return state;
-    });
-  },
+    // Implement save functionality if needed
+  }
 }));

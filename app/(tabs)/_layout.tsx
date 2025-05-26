@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
-import { useColorScheme } from 'react-native';
 import { Code, FolderClosed, Settings } from 'lucide-react-native';
+import { useColorScheme } from 'react-native';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();

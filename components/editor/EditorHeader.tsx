@@ -1,6 +1,6 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Folder, Terminal, Play, Save, GitBranch } from 'lucide-react-native';
 import { useEditorStore } from '@/store/editorStore';
+import { Folder, Play, Save, Terminal } from 'lucide-react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface EditorHeaderProps {
   toggleFileTree: () => void;

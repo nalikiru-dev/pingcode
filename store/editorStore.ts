@@ -1,18 +1,10 @@
 import { create } from 'zustand';
 import { EditorFile, EditorStore, Project } from '../types/editor';
 
-interface File {
-  id: string;
-  name: string;
-  path: string;
-  language: string;
-  content: string;
-}
-
 interface EditorState {
   projects: Project[];
   currentProject: Project | null;
-  files: File[];
+  files: EditorFile[];
   openFiles: string[];
   currentFile: string | null;
   mode: string;
@@ -24,11 +16,11 @@ interface EditorState {
   deleteProject: (projectId: string) => void;
   
   // File actions
-  addFile: (file: File) => void;
-  updateFile: (fileId: string, updates: Partial<File>) => void;
+  addFile: (file: EditorFile) => void;
+  updateFile: (fileId: string, updates: Partial<EditorFile>) => void;
   updateFileContent: (fileId: string, content: string) => void;
   deleteFile: (fileId: string) => void;
-  getFileById: (fileId: string) => File | undefined;
+  getFileById: (fileId: string) => EditorFile | undefined;
   
   // Editor state actions
   setCurrentFile: (fileId: string) => void;
@@ -44,11 +36,15 @@ const SAMPLE_FILES: EditorFile[] = [
   {
     id: '1',
     name: 'index.tsx',
+    path: '/',
+    language: 'typescript',
     content: 'import React from "react";\n\nexport default function App() {\n  return <div>Hello World</div>;\n}'
   },
   {
     id: '2',
     name: 'styles.css',
+    path: '/',
+    language: 'css',
     content: 'body {\n  margin: 0;\n  padding: 0;\n  font-family: sans-serif;\n}'
   }
 ];
@@ -83,13 +79,20 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   addFile: (file: EditorFile) => set((state) => ({
     files: [...state.files, file]
   })),
-  updateFile: (id: string, content: string) => set((state) => ({
+  updateFile: (fileId: string, updates: Partial<EditorFile>) => set((state) => ({
     files: state.files.map((file) => 
-      file.id === id ? { ...file, content } : file
+      file.id === fileId ? { ...file, ...updates } : file
     )
   })),
-  removeFile: (id: string) => set((state) => ({
-    files: state.files.filter((file) => file.id !== id)
+  updateFileContent: (fileId: string, content: string) => set((state) => ({
+    files: state.files.map((file) => 
+      file.id === fileId ? { ...file, content } : file
+    )
+  })),
+  deleteFile: (fileId: string) => set((state) => ({
+    files: state.files.filter((file) => file.id !== fileId),
+    openFiles: state.openFiles.filter((id) => id !== fileId),
+    currentFile: state.currentFile === fileId ? null : state.currentFile
   })),
   getFileById: (fileId: string) => {
     const state = get();

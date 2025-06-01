@@ -1,18 +1,17 @@
 import { create } from 'zustand';
-import { useColorScheme } from 'react-native';
 
-interface ThemeState {
-  theme: 'light' | 'dark' | 'system';
+interface ThemeStore {
+  theme: 'light' | 'dark';
   vimMode: boolean;
-  
-  setTheme: (theme: 'light' | 'dark' | 'system') => void;
+  setTheme: (theme: 'light' | 'dark') => void;
+  setVimMode: (enabled: boolean) => void;
   toggleVimMode: () => void;
 }
 
-export const useThemeStore = create<ThemeState>((set) => ({
+export const useThemeStore = create<ThemeStore>((set) => ({
   theme: 'dark',
   vimMode: false,
-  
   setTheme: (theme) => set({ theme }),
+  setVimMode: (enabled) => set({ vimMode: enabled }),
   toggleVimMode: () => set((state) => ({ vimMode: !state.vimMode })),
 }));

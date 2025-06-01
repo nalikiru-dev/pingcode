@@ -1,8 +1,9 @@
 import { useEditorStore } from '@/store/editorStore';
-import { FileSystem, FileSystemItem, TerminalOutput } from '@/types/editor';
+import { useThemeStore } from '@/store/themeStore';
+import { FileSystem, FileSystemItem, TerminalOutput, TerminalOutputType } from '@/types/editor';
 import { Maximize2, Minimize2, Terminal as TerminalIcon, X } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, Dimensions, NativeSyntheticEvent, Platform, ScrollView, StyleSheet, Text, TextInput, TextInputKeyPressEventData, TouchableOpacity, View } from 'react-native';
 
 // Define terminal themes
 const TERMINAL_THEMES = {
@@ -67,9 +68,9 @@ interface TerminalPanelProps {
 export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }: TerminalPanelProps) {
   const [command, setCommand] = useState('');
   const [output, setOutput] = useState<TerminalOutput[]>([
-    { text: 'PingCode Terminal v2.0 (Termux-like)', type: 'info' as const },
-    { text: 'Type "help" for available commands', type: 'info' as const },
-    { text: '', type: 'text' as const },
+    { text: 'PingCode Terminal v2.0 (Termux-like)', type: 'info' },
+    { text: 'Type "help" for available commands', type: 'info' },
+    { text: '', type: 'text' },
   ]);
   const [currentDir, setCurrentDir] = useState('/home/user');
   const [history, setHistory] = useState<string[]>([]);
@@ -78,24 +79,47 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
   const [mode, setMode] = useState<'basic' | 'vim' | 'advanced'>(initialMode);
   const [vimContent, setVimContent] = useState<string | null>(null);
   const [vimFile, setVimFile] = useState<string | null>(null);
-  const [vimMode, setVimMode] = useState<'normal' | 'insert'>('normal');
+  const [vimMode, setVimMode] = useState<'normal' | 'insert' | 'visual'>('normal');
+  const [vimCursor, setVimCursor] = useState({ line: 0, col: 0 });
+  const [vimSelection, setVimSelection] = useState<{ start: number; end: number } | null>(null);
+  const [vimCommandBuffer, setVimCommandBuffer] = useState('');
+  const [vimRegister, setVimRegister] = useState('');
+  const [vimUndoStack, setVimUndoStack] = useState<string[]>([]);
+  const [vimRedoStack, setVimRedoStack] = useState<string[]>([]);
   
   const { setEditorMode } = useEditorStore();
+  const { vimMode: isVimModeEnabled, toggleVimMode } = useThemeStore();
   const scrollViewRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
   const heightAnim = useRef(new Animated.Value(300)).current;
   
   // Terminal expansion animation
   useEffect(() => {
-    const targetHeight = expanded ? Dimensions.get('window').height * 0.7 : 300;
+    const targetHeight = expanded || (mode === 'vim' && vimContent !== null)
+      ? Dimensions.get('window').height
+      : 300;
+    
     Animated.timing(heightAnim, {
       toValue: targetHeight,
       duration: 300,
       useNativeDriver: false,
     }).start();
-  }, [expanded, heightAnim]);
+  }, [expanded, mode, vimContent]);
   
-  // Sync editor mode with terminal mode
+  // Sync terminal mode with vim mode from theme store
+  useEffect(() => {
+    if (isVimModeEnabled && mode !== 'vim') {
+      setMode('vim');
+      setExpanded(true);
+      setVimMode('normal');
+    } else if (!isVimModeEnabled && mode === 'vim') {
+      setMode('basic');
+      setExpanded(false);
+      setVimMode('normal');
+    }
+  }, [isVimModeEnabled, mode]);
+  
+  // Handle vim mode changes
   useEffect(() => {
     if (mode === 'vim') {
       setEditorMode('vim');
@@ -137,6 +161,12 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
     return '/' + currentParts.join('/');
   };
   
+  // Helper function to create terminal output with type safety
+  const createOutput = (text: string, type: TerminalOutputType): TerminalOutput => ({
+    text,
+    type,
+  });
+  
   // Add output messages with type
   const addOutput = (lines: TerminalOutput[]) => {
     setOutput(prev => [...prev, ...lines]);
@@ -153,7 +183,7 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
     setHistory(prev => [...prev, command]);
     setHistoryIndex(-1);
     
-    addOutput([{ text: `$ ${command}`, type: 'command' }]);
+    addOutput([createOutput(`$ ${command}`, 'command')]);
     
     const cmdParts = command.trim().split(' ');
     const cmdName = cmdParts[0].toLowerCase();
@@ -168,11 +198,9 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
     switch (cmdName) {
       case 'help':
         addOutput([
-          { text: 'Available commands:', type: 'info' as const },
-          ...HELP_COMMANDS.map(cmd => (
-            { text: `  ${cmd.name.padEnd(12)} ${cmd.desc}`, type: 'text' as const }
-          )),
-          { text: '', type: 'text' as const }
+          createOutput('Available commands:', 'info'),
+          ...HELP_COMMANDS.map(cmd => createOutput(`  ${cmd.name.padEnd(12)} ${cmd.desc}`, 'text')),
+          createOutput('', 'text'),
         ]);
         break;
         
@@ -186,9 +214,9 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
         
       case 'version':
         addOutput([
-          { text: 'PingCode Terminal v2.0', type: 'info' as const },
-          { text: `Running on ${Platform.OS} with ${mode} mode`, type: 'info' as const },
-          { text: '', type: 'text' as const }
+          createOutput('PingCode Terminal v2.0', 'info'),
+          createOutput(`Running on ${Platform.OS} with ${mode} mode`, 'info'),
+          createOutput('', 'text'),
         ]);
         break;
         
@@ -206,15 +234,15 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
         
       case 'pwd':
         addOutput([
-          { text: currentDir, type: 'success' as const },
-          { text: '', type: 'text' as const }
+          createOutput(currentDir, 'success'),
+          createOutput('', 'text'),
         ]);
         break;
         
       case 'echo':
         addOutput([
-          { text: args.join(' '), type: 'text' as const },
-          { text: '', type: 'text' as const }
+          createOutput(args.join(' '), 'text'),
+          createOutput('', 'text'),
         ]);
         break;
         
@@ -236,41 +264,46 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
         
       case 'mode':
         if (args[0] === 'vim') {
-          setMode('vim');
-          setExpanded(true);
+          toggleVimMode();
           addOutput([
-            { text: 'Switched to vim mode', type: 'info' as const },
-            { text: 'Terminal expanded', type: 'info' as const },
-            { text: '', type: 'text' as const }
+            createOutput('Switched to vim mode', 'info'),
+            createOutput('Terminal expanded', 'info'),
+            createOutput('', 'text'),
           ]);
         } else if (args[0] === 'basic') {
+          if (mode === 'vim') {
+            toggleVimMode();
+          }
           setMode('basic');
           setExpanded(false);
           addOutput([
-            { text: 'Switched to basic mode', type: 'info' as const },
-            { text: '', type: 'text' as const }
+            createOutput('Switched to basic mode', 'info'),
+            createOutput('', 'text'),
           ]);
         } else if (args[0] === 'advanced') {
+          if (mode === 'vim') {
+            toggleVimMode();
+          }
           setMode('advanced');
           addOutput([
-            { text: 'Switched to advanced mode', type: 'info' as const },
-            { text: '', type: 'text' as const }
+            createOutput('Switched to advanced mode', 'info'),
+            createOutput('', 'text'),
           ]);
         } else {
           addOutput([
-            { text: `Current mode: ${mode}`, type: 'info' as const },
-            { text: 'Available modes: basic, vim, advanced', type: 'info' as const },
-            { text: 'Usage: mode [mode_name]', type: 'info' as const },
-            { text: '', type: 'text' as const }
+            createOutput(`Current mode: ${mode}`, 'info'),
+            createOutput('Available modes: basic, vim, advanced', 'info'),
+            createOutput('Usage: mode [mode_name]', 'info'),
+            createOutput('', 'text'),
           ]);
         }
         break;
         
       default:
         addOutput([
-          { text: `Command not found: ${cmdName}`, type: 'error' as const },
-          { text: 'Type "help" for available commands', type: 'info' as const },
-          { text: '', type: 'text' as const }
+          createOutput(`Command not found: ${cmdName}`, 'error'),
+          createOutput('Type "help" for available commands', 'info'),
+          createOutput('', 'text'),
         ]);
     }
   };
@@ -282,16 +315,16 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
     
     if (!item) {
       addOutput([
-        { text: `ls: cannot access '${path}': No such file or directory`, type: 'error' as const },
-        { text: '', type: 'text' as const }
+        createOutput(`ls: cannot access '${path}': No such file or directory`, 'error'),
+        createOutput('', 'text'),
       ]);
       return;
     }
     
     if (typeof item === 'string') {
       addOutput([
-        { text: `ls: cannot list '${path}': Not a directory`, type: 'error' as const },
-        { text: '', type: 'text' as const }
+        createOutput(`ls: cannot list '${path}': Not a directory`, 'error'),
+        createOutput('', 'text'),
       ]);
       return;
     }
@@ -302,23 +335,23 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
     }));
     
     if (entries.length === 0) {
-      addOutput([{ text: '', type: 'text' as const }]);
+      addOutput([createOutput('', 'text')]);
       return;
     }
     
-    const formatted = entries.map(entry => ({
-      text: entry.isDirectory ? `${entry.name}/` : entry.name,
-      type: entry.isDirectory ? 'info' as const : 'text' as const
-    }));
+    const formatted: TerminalOutput[] = entries.map(entry => createOutput(
+      entry.isDirectory ? `${entry.name}/` : entry.name,
+      entry.isDirectory ? 'info' : 'text'
+    ));
     
-    addOutput([...formatted, { text: '', type: 'text' as const }]);
+    addOutput([...formatted, createOutput('', 'text')]);
   };
   
   // Handle cd command
   const handleCdCommand = (args: string[]) => {
     if (args.length === 0) {
       setCurrentDir('/home/user');
-      addOutput([{ text: '', type: 'text' as const }]);
+      addOutput([createOutput('', 'text')]);
       return;
     }
     
@@ -327,30 +360,30 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
     
     if (!item) {
       addOutput([
-        { text: `cd: no such directory: ${path}`, type: 'error' as const },
-        { text: '', type: 'text' as const }
+        createOutput(`cd: no such directory: ${path}`, 'error'),
+        createOutput('', 'text'),
       ]);
       return;
     }
     
     if (typeof item === 'string') {
       addOutput([
-        { text: `cd: not a directory: ${path}`, type: 'error' as const },
-        { text: '', type: 'text' as const }
+        createOutput(`cd: not a directory: ${path}`, 'error'),
+        createOutput('', 'text'),
       ]);
       return;
     }
     
     setCurrentDir(path);
-    addOutput([{ text: '', type: 'text' as const }]);
+    addOutput([createOutput('', 'text')]);
   };
   
   // Handle cat command
   const handleCatCommand = (args: string[]) => {
     if (args.length === 0) {
       addOutput([
-        { text: 'Usage: cat [file]', type: 'info' as const },
-        { text: '', type: 'text' as const }
+        createOutput('Usage: cat [file]', 'info'),
+        createOutput('', 'text'),
       ]);
       return;
     }
@@ -360,30 +393,30 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
     
     if (!item) {
       addOutput([
-        { text: `cat: ${path}: No such file or directory`, type: 'error' as const },
-        { text: '', type: 'text' as const }
+        createOutput(`cat: ${path}: No such file or directory`, 'error'),
+        createOutput('', 'text'),
       ]);
       return;
     }
     
     if (typeof item !== 'string') {
       addOutput([
-        { text: `cat: ${path}: Is a directory`, type: 'error' as const },
-        { text: '', type: 'text' as const }
+        createOutput(`cat: ${path}: Is a directory`, 'error'),
+        createOutput('', 'text'),
       ]);
       return;
     }
     
-    const lines = item.split('\n').map(line => ({ text: line, type: 'text' as const }));
-    addOutput([...lines, { text: '', type: 'text' as const }]);
+    const lines = item.split('\n').map(line => createOutput(line, 'text'));
+    addOutput([...lines, createOutput('', 'text')]);
   };
   
   // Handle vim file command
   const handleVimFileCommand = (args: string[]) => {
     if (args.length === 0) {
       addOutput([
-        { text: 'Usage: vim [file]', type: 'info' as const },
-        { text: '', type: 'text' as const }
+        createOutput('Usage: vim [file]', 'info'),
+        createOutput('', 'text'),
       ]);
       return;
     }
@@ -397,8 +430,8 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
     
     if (!parent || typeof parent === 'string') {
       addOutput([
-        { text: `vim: cannot create file '${path}': Directory does not exist`, type: 'error' as const },
-        { text: '', type: 'text' as const }
+        createOutput(`vim: cannot create file '${path}': Directory does not exist`, 'error'),
+        createOutput('', 'text'),
       ]);
       return;
     }
@@ -411,8 +444,8 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
     
     if (typeof item !== 'string') {
       addOutput([
-        { text: `vim: ${path}: Is a directory`, type: 'error' as const },
-        { text: '', type: 'text' as const }
+        createOutput(`vim: ${path}: Is a directory`, 'error'),
+        createOutput('', 'text'),
       ]);
       return;
     }
@@ -423,10 +456,15 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
     setVimContent(item);
     setVimFile(path);
     setVimMode('normal');
+    setVimCursor({ line: 0, col: 0 });
+    setVimSelection(null);
+    setVimCommandBuffer('');
+    setVimUndoStack([item]);
+    setVimRedoStack([]);
     
     addOutput([
-      { text: `"${path}" ${item.length} characters`, type: 'info' as const },
-      { text: '-- NORMAL --', type: 'highlight' as const },
+      createOutput(`"${path}" ${item.length} characters`, 'info'),
+      createOutput('-- NORMAL --', 'highlight'),
     ]);
   };
   
@@ -434,8 +472,8 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
   const handleMkdirCommand = (args: string[]) => {
     if (args.length === 0) {
       addOutput([
-        { text: 'Usage: mkdir [directory]', type: 'info' as const },
-        { text: '', type: 'text' as const }
+        createOutput('Usage: mkdir [directory]', 'info'),
+        createOutput('', 'text'),
       ]);
       return;
     }
@@ -448,31 +486,31 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
     
     if (!parent || typeof parent === 'string') {
       addOutput([
-        { text: `mkdir: cannot create directory '${path}': No such file or directory`, type: 'error' as const },
-        { text: '', type: 'text' as const }
+        createOutput(`mkdir: cannot create directory '${path}': No such file or directory`, 'error'),
+        createOutput('', 'text'),
       ]);
       return;
     }
     
     if (parent[dirName]) {
       addOutput([
-        { text: `mkdir: cannot create directory '${path}': File exists`, type: 'error' as const },
-        { text: '', type: 'text' as const }
+        createOutput(`mkdir: cannot create directory '${path}': File exists`, 'error'),
+        createOutput('', 'text'),
       ]);
       return;
     }
     
     // Create directory
     parent[dirName] = {};
-    addOutput([{ text: '', type: 'text' as const }]);
+    addOutput([createOutput('', 'text')]);
   };
   
   // Handle touch command
   const handleTouchCommand = (args: string[]) => {
     if (args.length === 0) {
       addOutput([
-        { text: 'Usage: touch [file]', type: 'info' as const },
-        { text: '', type: 'text' as const }
+        createOutput('Usage: touch [file]', 'info'),
+        createOutput('', 'text'),
       ]);
       return;
     }
@@ -485,23 +523,23 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
     
     if (!parent || typeof parent === 'string') {
       addOutput([
-        { text: `touch: cannot touch '${path}': No such file or directory`, type: 'error' as const },
-        { text: '', type: 'text' as const }
+        createOutput(`touch: cannot touch '${path}': No such file or directory`, 'error'),
+        createOutput('', 'text'),
       ]);
       return;
     }
     
     // Create or update file
     parent[fileName] = parent[fileName] || '';
-    addOutput([{ text: '', type: 'text' as const }]);
+    addOutput([createOutput('', 'text')]);
   };
   
   // Handle rm command
   const handleRmCommand = (args: string[]) => {
     if (args.length === 0) {
       addOutput([
-        { text: 'Usage: rm [file]', type: 'info' as const },
-        { text: '', type: 'text' as const }
+        createOutput('Usage: rm [file]', 'info'),
+        createOutput('', 'text'),
       ]);
       return;
     }
@@ -514,16 +552,16 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
     
     if (!parent || typeof parent === 'string') {
       addOutput([
-        { text: `rm: cannot remove '${path}': No such file or directory`, type: 'error' as const },
-        { text: '', type: 'text' as const }
+        createOutput(`rm: cannot remove '${path}': No such file or directory`, 'error'),
+        createOutput('', 'text'),
       ]);
       return;
     }
     
     if (!parent[fileName]) {
       addOutput([
-        { text: `rm: cannot remove '${path}': No such file or directory`, type: 'error' as const },
-        { text: '', type: 'text' as const }
+        createOutput(`rm: cannot remove '${path}': No such file or directory`, 'error'),
+        createOutput('', 'text'),
       ]);
       return;
     }
@@ -531,79 +569,36 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
     // Check if it's a directory and we don't have -r flag
     if (typeof parent[fileName] !== 'string' && !args.includes('-r') && !args.includes('-rf')) {
       addOutput([
-        { text: `rm: cannot remove '${path}': Is a directory`, type: 'error' as const },
-        { text: 'Try \'rm -r\' to remove the directory', type: 'info' as const },
-        { text: '', type: 'text' as const }
+        createOutput(`rm: cannot remove '${path}': Is a directory`, 'error'),
+        createOutput('Try \'rm -r\' to remove the directory', 'info'),
+        createOutput('', 'text'),
       ]);
       return;
     }
     
     // Remove file or directory
     delete parent[fileName];
-    addOutput([{ text: '', type: 'text' as const }]);
+    addOutput([createOutput('', 'text')]);
   };
   
-  // Vim save and exit
-  const handleVimSave = () => {
-    if (!vimFile || vimContent === null) return;
+  // Handle vim key press
+  const handleVimKeyPress = (key: string) => {
+    if (!vimContent) return;
     
-    const segments = vimFile.split('/').filter(Boolean);
-    const fileName = segments[segments.length - 1];
-    const parentPath = '/' + segments.slice(0, -1).join('/');
-    const parent = getItemAtPath(parentPath);
+    const lines = vimContent.split('\n');
+    const currentLine = lines[vimCursor.line] || '';
     
-    if (parent && typeof parent !== 'string') {
-      parent[fileName] = vimContent;
-      
-      addOutput([
-        { text: `"${vimFile}" ${vimContent.length}L, ${vimContent.length} characters written`, type: 'success' as const },
-        { text: '', type: 'text' as const }
-      ]);
-    }
-    
-    // Exit vim mode
-    setVimContent(null);
-    setVimFile(null);
-    setMode('advanced');
-  };
-  
-  // Handle keyboard navigation in history
-  const handleKeyPress = (e: { nativeEvent: { key: string } }) => {
-    const { key } = e.nativeEvent;
-    
-    if (vimContent !== null) {
-      // Vim mode key handling
-      if (vimMode === 'normal') {
-        if (key === 'i') {
+    if (vimMode === 'normal') {
+      switch (key) {
+        case 'i':
           setVimMode('insert');
-          addOutput([{ text: '-- INSERT --', type: 'highlight' as const }]);
-        } else if (key === ':') {
+          addOutput([createOutput('-- INSERT --', 'highlight')]);
+        case ':':
           setCommand(':');
           inputRef.current?.focus();
-        }
+        default:
+          break;
       }
-      return;
-    }
-    
-    if (key === 'ArrowUp') {
-      // Navigate up in history
-      if (history.length > 0 && historyIndex < history.length - 1) {
-        const newIndex = historyIndex + 1;
-        setHistoryIndex(newIndex);
-        setCommand(history[history.length - 1 - newIndex]);
-      }
-    } else if (key === 'ArrowDown') {
-      // Navigate down in history
-      if (historyIndex > 0) {
-        const newIndex = historyIndex - 1;
-        setHistoryIndex(newIndex);
-        setCommand(history[history.length - 1 - newIndex]);
-      } else if (historyIndex === 0) {
-        setHistoryIndex(-1);
-    setCommand('');
-      }
-    } else if (key === 'Tab') {
-      // Command auto-completion could be added here
     }
   };
   
@@ -632,8 +627,62 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
     }
   };
   
+  // Vim save and exit
+  const handleVimSave = () => {
+    if (!vimFile || vimContent === null) return;
+    
+    const segments = vimFile.split('/').filter(Boolean);
+    const fileName = segments[segments.length - 1];
+    const parentPath = '/' + segments.slice(0, -1).join('/');
+    const parent = getItemAtPath(parentPath);
+    
+    if (parent && typeof parent !== 'string') {
+      parent[fileName] = vimContent;
+      
+      addOutput([
+        createOutput(`"${vimFile}" ${vimContent.length}L, ${vimContent.length} characters written`, 'success'),
+        createOutput('', 'text'),
+      ]);
+    }
+    
+    // Exit vim mode
+    setVimContent(null);
+    setVimFile(null);
+    setMode('advanced');
+  };
+
+  // Handle keyboard navigation in history
+  const handleKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+    const { key } = e.nativeEvent;
+    
+    if (vimContent !== null) {
+      handleVimKeyPress(key);
+      return;
+    }
+    
+    if (key === 'ArrowUp') {
+      if (history.length > 0 && historyIndex < history.length - 1) {
+        const newIndex = historyIndex + 1;
+        setHistoryIndex(newIndex);
+        setCommand(history[history.length - 1 - newIndex]);
+      }
+    } else if (key === 'ArrowDown') {
+      if (historyIndex > 0) {
+        const newIndex = historyIndex - 1;
+        setHistoryIndex(newIndex);
+        setCommand(history[history.length - 1 - newIndex]);
+      } else if (historyIndex === 0) {
+        setHistoryIndex(-1);
+        setCommand('');
+      }
+    }
+  };
+  
   return (
-    <Animated.View style={[styles.container, { height: heightAnim }]}>
+    <Animated.View style={[
+      styles.container,
+      mode === 'vim' && vimContent && styles.fullscreen
+    ]}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <TerminalIcon size={14} color="#FFFFFF" style={styles.headerIcon} />
@@ -653,7 +702,7 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} onPress={toggleTerminal}>
             <X size={14} color="#FFFFFF" />
-        </TouchableOpacity>
+          </TouchableOpacity>
         </View>
       </View>
       
@@ -665,7 +714,7 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
         {output.map((line, index) => (
           <Text key={index} style={[
             styles.outputLine,
-            styles[line.type as keyof typeof styles] || styles.text
+            styles[line.type]
           ]}>
             {line.text}
           </Text>
@@ -673,7 +722,19 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
         
         {vimContent !== null && (
           <View style={styles.vimContainer}>
-            <Text style={styles.vimContent}>{vimContent}</Text>
+            {vimContent.split('\n').map((line, lineIndex) => (
+              <View key={lineIndex} style={styles.vimLine}>
+                <Text style={[
+                  styles.vimLineContent,
+                  vimSelection && lineIndex >= vimSelection.start && lineIndex <= vimSelection.end && styles.vimSelection
+                ]}>
+                  {line}
+                  {lineIndex === vimCursor.line && (
+                    <Text style={styles.vimCursor}>|</Text>
+                  )}
+                </Text>
+              </View>
+            ))}
           </View>
         )}
       </ScrollView>
@@ -708,80 +769,77 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: TERMINAL_THEMES.dark.border,
-    backgroundColor: '#252525',
+    padding: 10,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   headerIcon: {
-    marginRight: 6,
+    marginRight: 10,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: TERMINAL_THEMES.dark.text,
   },
   headerActions: {
     flexDirection: 'row',
+    alignItems: 'center',
   },
   headerButton: {
-    padding: 4,
-    marginLeft: 8,
-  },
-  title: {
-    color: TERMINAL_THEMES.dark.text,
-    fontWeight: 'bold',
-    fontSize: 12,
-    textTransform: 'uppercase',
+    padding: 5,
   },
   outputContainer: {
     flex: 1,
   },
   outputContent: {
-    padding: 8,
-    paddingBottom: 16,
+    padding: 10,
   },
   outputLine: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : Platform.OS === 'android' ? 'monospace' : 'Consolas',
-    fontSize: 12,
-    lineHeight: 18,
+    color: TERMINAL_THEMES.dark.text,
+  },
+  vimContainer: {
+    flex: 1,
+  },
+  vimLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  vimLineContent: {
+    flex: 1,
+    color: TERMINAL_THEMES.dark.text,
+  },
+  vimSelection: {
+    backgroundColor: TERMINAL_THEMES.dark.highlight,
+  },
+  vimCursor: {
+    fontWeight: 'bold',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: TERMINAL_THEMES.dark.border,
-    padding: 8,
+    padding: 10,
   },
   prompt: {
-    color: TERMINAL_THEMES.dark.prompt,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : Platform.OS === 'android' ? 'monospace' : 'Consolas',
-    fontSize: 12,
-    marginRight: 8,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: TERMINAL_THEMES.dark.text,
+    marginRight: 10,
   },
   input: {
     flex: 1,
-    color: TERMINAL_THEMES.dark.command,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : Platform.OS === 'android' ? 'monospace' : 'Consolas',
-    fontSize: 12,
-    padding: 0,
-  },
-  vimContainer: {
-    marginTop: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: TERMINAL_THEMES.dark.border,
-    padding: 8,
-    backgroundColor: '#1A1A1A',
-  },
-  vimContent: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : Platform.OS === 'android' ? 'monospace' : 'Consolas',
-    fontSize: 12,
-    lineHeight: 18,
     color: TERMINAL_THEMES.dark.text,
   },
-  // Text styles for different output types
+  fullscreen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  // Output type styles
   text: {
     color: TERMINAL_THEMES.dark.text,
   },

@@ -623,7 +623,7 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
       setVimContent(null);
       setVimFile(null);
       setMode('advanced');
-      setCommand('');
+    setCommand('');
     }
   };
   
@@ -702,7 +702,7 @@ export default function TerminalPanel({ toggleTerminal, initialMode = 'basic' }:
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} onPress={toggleTerminal}>
             <X size={14} color="#FFFFFF" />
-          </TouchableOpacity>
+        </TouchableOpacity>
         </View>
       </View>
       

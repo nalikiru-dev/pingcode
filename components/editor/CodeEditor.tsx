@@ -9,6 +9,7 @@ import markdown from 'highlight.js/lib/languages/markdown';
 import python from 'highlight.js/lib/languages/python';
 import typescript from 'highlight.js/lib/languages/typescript';
 import xml from 'highlight.js/lib/languages/xml';
+import { Image } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -197,7 +198,7 @@ export default function CodeEditor({
   if (!activeFile) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No file selected</Text>
+        <Image></Image>
       </View>
     );
   }

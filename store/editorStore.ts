@@ -81,12 +81,12 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   })),
   updateFile: (fileId: string, updates: Partial<EditorFile>) => set((state) => ({
     files: state.files.map((file) => 
-      file.id === fileId ? { ...file, ...updates } : file
+        file.id === fileId ? { ...file, ...updates } : file
     )
   })),
   updateFileContent: (fileId: string, content: string) => set((state) => ({
     files: state.files.map((file) => 
-      file.id === fileId ? { ...file, content } : file
+        file.id === fileId ? { ...file, content } : file
     )
   })),
   deleteFile: (fileId: string) => set((state) => ({
@@ -116,7 +116,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   
   // Editor state actions
   setCurrentFile: (fileId: string) => set((state) => ({
-    currentFile: fileId,
+        currentFile: fileId,
     openFiles: state.openFiles.includes(fileId) 
       ? state.openFiles 
       : [...state.openFiles, fileId]
